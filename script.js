@@ -129,9 +129,9 @@ document.getElementById('po-form').addEventListener('submit', function(event) {
     rowSku.textContent = barang.sku;
     row.appendChild(rowSku);
     
-    const descCell = document.createElement('td');
-    descCell.textContent = barang.desc;
-    row.appendChild(descCell);
+    const rowDesc = document.createElement('td');
+    rowDesc.textContent = barang.desc;
+    row.appendChild(rowDesc);
 
     const rowQty = document.createElement('td');
     rowQty.classList.add('text-center');
@@ -157,6 +157,7 @@ document.getElementById('po-form').addEventListener('submit', function(event) {
     const editButton = document.createElement('button');
     const cls = ["edit", "btn", "btn", "btn-sm", "btn-warning"]
     editButton.classList.add(...cls);
+    editButton.style.minWidth = '100px';
     editButton.textContent = 'Ubah';
     editButton.onclick = function() {
         const newQty = prompt('Masukkan jumlah baru:', jumlah);
@@ -171,8 +172,8 @@ document.getElementById('po-form').addEventListener('submit', function(event) {
             const newNW = barang.nw * newQty;
             const newVolume = barang.volume * newQty;
             rowQty.textContent = newQty;
-            rowNW.textContent = `${newNW}`;
-            rowVolume.textContent = `${newVolume}`;
+            rowNW.textContent = `${newNW.toFixed(3)}`;
+            rowVolume.textContent = `${newVolume.toFixed(3)}`;
 
             //update all sum
             sumAllCt -= oldQty;
@@ -193,6 +194,7 @@ document.getElementById('po-form').addEventListener('submit', function(event) {
     const deleteButton = document.createElement('button');
     const clsDelete = ["edit", "btn", "btn", "btn-sm", "btn-danger"]
     deleteButton.classList.add(...clsDelete);
+    deleteButton.style.minWidth = '100px';
     deleteButton.textContent = 'Hapus';
     deleteButton.onclick = function() {
 
@@ -222,24 +224,117 @@ document.getElementById('po-form').addEventListener('submit', function(event) {
 });
 
 //print PDF File
-document.getElementById('cetakPDF').onclick = function(){
-    const { jsPDF } = window.jspdf;
+document.getElementById('cetakPDF').addEventListener('click', function () {
+    const sumCT = document.getElementById('total-ct').value;
+    const sumNW = document.getElementById('total-nw').value;
+    const sumVOL = document.getElementById('total-volume').value;
 
+    const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    const table = document.getElementById("dataTable");
-    const rows = table.querySelectorAll("tr");
+    // Menambahkan judul
+    doc.setFontSize(12);
+    doc.text("Estimasi Sales Order", 14, 20);
+    doc.text("CT: " + sumCT, 80, 20);
+    doc.text("NW: " + sumNW, 120, 20);
+    doc.text("Volume: " + sumVOL, 160, 20);
 
-    let y = 10; // Posisi vertikal di PDF
-    for (let i = 1; i < rows.length; i++) { // Mulai dari 1 untuk melewatkan header
-        const cells = rows[i].querySelectorAll("td");
-        let x = 10; // Posisi horizontal di PDF
-        for (let j = 0; j < cells.length - 1; j++) { // Tidak perlu mengambil kolom aksi
-            doc.text(cells[j].innerText, x, y);
-            x += 40; // Menambah jarak antar kolom
+    // Mengambil data dari tabel HTML
+    const table = document.getElementById('po-list');
+    const rows = Array.from(table.querySelectorAll('tr'));
+
+    const tableData = [];
+    const headers = [];
+    
+    // Mengambil header tabel
+    rows[0].querySelectorAll('th').forEach((th) => {
+        headers.push(th.innerText);
+    });
+
+    const selectedColumnsIndex = [0, 1, 2, 3, 4, 5];
+
+    rows.slice(1).forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const rowData = [];
+        selectedColumnsIndex.forEach(index => {
+            rowData.push(cells[index].innerText);  // Menambahkan data dari kolom yang dipilih
+        });
+        tableData.push(rowData);
+    });
+
+    doc.autoTable({
+        head: [headers.filter((_, index) => selectedColumnsIndex.includes(index))],  // Menyaring header yang ditampilkan
+        body: tableData,
+        startY: 30,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: {
+            fillColor: [0, 123, 255], 
+            textColor: [255, 255, 255], 
+            fontSize: 12,
+            halign: 'center'
+        },
+        bodyStyles: {
+            fillColor: [240, 240, 240]
+        },
+        columnStyles: {
+            3: {
+                halign: 'right',
+            },
+            4: {
+                halign: 'right',
+            },
+            5: {
+                halign: 'right',
+            },
         }
-        y += 10; // Menambah jarak antar baris
-    }
+    });
 
-    doc.save("tabel.pdf");
-}
+    doc.save("my-estimate-sales-order.pdf");
+})
+
+//print All Item
+document.getElementById('catalog').addEventListener('click', function(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Menambahkan judul
+    doc.setFontSize(12);
+    doc.text("Lists All Item", 14, 20);
+
+    // Menambahkan tabel dari data JSON
+    const startY = 30;
+    const margin = 10;
+
+    // Menambahkan header tabel
+    const headers = ['Material', 'SKU', 'Description', 'NW', 'Volume'];
+    const rows = barangJson.map(item => [item.id, item.sku, item.desc, item.nw.toFixed(3), item.volume.toFixed(3)]);
+
+    doc.autoTable({
+      head: [headers],
+      body: rows,
+      startY: startY,
+      theme: 'grid', 
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { 
+            fillColor: [0, 123, 255], 
+            textColor: [255, 255, 255], 
+            fontSize: 12,
+            halign: 'center'
+      },
+      bodyStyles: { fillColor: [240, 240, 240] },
+      columnStyles: {
+        3: {
+            halign: 'right',
+        },
+        4: {
+            halign: 'right',
+        },
+        5: {
+            halign: 'right',
+        },
+    }
+    });
+
+    // Menyimpan PDF
+    doc.save("my-catalog.pdf");
+})
